@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crew Rotation Overtime Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --bg2: #181b24;
+  --bg3: #1e2230;
+  --surface: rgba(255,255,255,0.04);
+  --surface-hover: rgba(255,255,255,0.07);
+  --border: rgba(255,255,255,0.08);
+  --border-accent: rgba(99,140,255,0.3);
+  --text: #e4e7ef;
+  --text2: #9ca3b8;
+  --text3: #6b7280;
+  --accent: #638cff;
+  --accent2: #4f72d9;
+  --accent-glow: rgba(99,140,255,0.15);
+  --green: #34d399;
+  --green-bg: rgba(52,211,153,0.1);
+  --orange: #f59e0b;
+  --orange-bg: rgba(245,158,11,0.1);
+  --red: #f87171;
+  --red-bg: rgba(248,113,113,0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="light"] {
+  --bg: #f3f4f8;
+  --bg2: #ffffff;
+  --bg3: #ebedf3;
+  --surface: rgba(0,0,0,0.03);
+  --surface-hover: rgba(0,0,0,0.06);
+  --border: rgba(0,0,0,0.1);
+  --border-accent: rgba(99,140,255,0.3);
+  --text: #1a1d2b;
+  --text2: #5a6178;
+  --text3: #9ca3b8;
+  --accent: #4a6fe5;
+  --accent2: #3b5cc9;
+  --accent-glow: rgba(74,111,229,0.1);
+  --green: #059669;
+  --green-bg: rgba(5,150,105,0.08);
+  --orange: #d97706;
+  --orange-bg: rgba(217,119,6,0.08);
+  --red: #dc2626;
+  --red-bg: rgba(220,38,38,0.08);
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  transition: background var(--transition), color var(--transition);
+}
+.container { max-width: 960px; margin: 0 auto; padding: 24px 16px 80px; }
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 0 32px; flex-wrap: wrap; gap: 12px;
+}
+header h1 {
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+header .subtitle { font-size: 0.82rem; color: var(--text3); margin-top: 2px; }
+.theme-toggle {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text2); cursor: pointer; display: grid; place-items: center;
+  transition: all var(--transition); font-size: 1.1rem;
+}
+.theme-toggle:hover { background: var(--surface-hover); border-color: var(--border-accent); }
+
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+  margin-bottom: 20px; transition: all var(--transition);
+  animation: fadeUp 0.4s ease-out both;
+}
+.card:hover { border-color: var(--border-accent); }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.card-title {
+  font-size: 0.78rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text3); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title .icon { font-size: 1rem; }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media(max-width:600px){ .form-row { grid-template-columns: 1fr; } }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 0.78rem; font-weight: 500; color: var(--text2); }
+select, input {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  color: var(--text); font-size: 0.88rem; outline: none;
+  transition: all var(--transition); width: 100%;
+}
+select:focus, input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+select { cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  padding-right: 32px;
+}
+input::placeholder { color: var(--text3); }
+input:invalid { border-color: var(--red); }
+
+.crew-tier {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px;
+  display: grid; grid-template-columns: 2fr 1fr 40px; gap: 10px; align-items: end;
+  transition: all var(--transition); animation: fadeUp 0.3s ease-out both;
+}
+@media(max-width:600px){ .crew-tier { grid-template-columns: 1fr 1fr; } }
+.crew-tier:hover { border-color: var(--border-accent); }
+.remove-tier {
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  background: var(--red-bg); border: 1px solid transparent;
+  color: var(--red); cursor: pointer; display: grid; place-items: center;
+  font-size: 1.1rem; transition: all var(--transition);
+}
+.remove-tier:hover { background: var(--red); color: white; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  border: 1px solid transparent; transition: all var(--transition);
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: white; box-shadow: 0 2px 12px var(--accent-glow);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+.btn-secondary {
+  background: var(--surface); border-color: var(--border); color: var(--text2);
+}
+.btn-secondary:hover { background: var(--surface-hover); border-color: var(--border-accent); color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+
+.btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+.info-box {
+  background: var(--accent-glow); border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 14px;
+  font-size: 0.82rem; color: var(--text2); line-height: 1.5;
+}
+.info-box strong { color: var(--text); }
+
+.results-section { display: none; }
+.results-section.visible { display: block; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.metric-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 16px; position: relative;
+  transition: all var(--transition); cursor: default;
+}
+.metric-card:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+.metric-label { font-size: 0.72rem; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+.metric-value { font-size: 1.6rem; font-weight: 700; margin-top: 4px; color: var(--text); }
+.metric-sub { font-size: 0.78rem; color: var(--text2); margin-top: 2px; }
+.metric-card .copy-btn {
+  position: absolute; top: 10px; right: 10px;
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text3); cursor: pointer; display: grid; place-items: center;
+  font-size: 0.75rem; opacity: 0; transition: all var(--transition);
+}
+.metric-card:hover .copy-btn { opacity: 1; }
+.metric-card .copy-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+.metric-card .copy-btn.copied { background: var(--green); color: white; border-color: var(--green); opacity: 1; }
+
+.tier-results { margin-top: 20px; }
+.tier-result-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 18px; margin-bottom: 12px;
+  transition: all var(--transition);
+}
+.tier-result-card:hover { border-color: var(--border-accent); }
+.tier-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.tier-name { font-weight: 700; font-size: 1rem; }
+.tier-badge {
+  font-size: 0.72rem; font-weight: 600; padding: 3px 10px;
+  border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.tier-badge.low { background: var(--green-bg); color: var(--green); }
+.tier-badge.med { background: var(--orange-bg); color: var(--orange); }
+.tier-badge.high { background: var(--red-bg); color: var(--red); }
+.breakdown-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.breakdown-item { text-align: center; padding: 10px; background: var(--bg2); border-radius: var(--radius-sm); }
+.breakdown-item .bl { font-size: 0.7rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.04em; }
+.breakdown-item .bv { font-size: 1.15rem; font-weight: 700; margin-top: 2px; }
+
+.province-rules-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 16px; margin-top: 20px;
+  font-size: 0.82rem; color: var(--text2); line-height: 1.6;
+}
+.province-rules-box h4 { font-size: 0.82rem; color: var(--text); margin-bottom: 6px; }
+
+.error-msg {
+  background: var(--red-bg); border: 1px solid rgba(248,113,113,0.3);
+  border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px;
+  font-size: 0.82rem; color: var(--red); display: none;
+}
+.error-msg.visible { display: block; animation: fadeUp 0.3s ease-out; }
+
+.custom-pattern-input { display: none; margin-top: 8px; }
+.custom-pattern-input.visible { display: block; }
+.cycles-display { font-size: 0.82rem; color: var(--text2); margin-top: 8px; }
+.cycles-display strong { color: var(--accent); }
+
+footer {
+  text-align: center; padding: 32px 0 16px;
+  font-size: 0.75rem; color: var(--text3);
+}
+#printTarget { display: none; }
+</style>
+</head>
+<body data-theme="dark">
+<div class="container">
+  <header>
+    <div>
+      <h1>Crew Rotation OT Calculator</h1>
+      <div class="subtitle">Canadian Provincial Overtime Analysis</div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">&#9790;</button>
+  </header>
+
+  <div id="errorBox" class="error-msg"></div>
+
+  <!-- Province & Rotation -->
+  <div class="card" style="animation-delay:0.05s">
+    <div class="card-title"><span class="icon">&#9881;</span> Configuration</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Province / Territory</label>
+        <select id="province">
+          <option value="AB">Alberta</option>
+          <option value="BC">British Columbia</option>
+          <option value="MB">Manitoba</option>
+          <option value="NB">New Brunswick</option>
+          <option value="NL">Newfoundland &amp; Labrador</option>
+          <option value="NS">Nova Scotia</option>
+          <option value="NT">Northwest Territories</option>
+          <option value="NU">Nunavut</option>
+          <option value="ON" selected>Ontario</option>
+          <option value="PE">Prince Edward Island</option>
+          <option value="QC">Quebec</option>
+          <option value="SK">Saskatchewan</option>
+          <option value="YT">Yukon</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Start Day</label>
+        <select id="startDay">
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+          <option value="2">Wednesday</option>
+          <option value="3">Thursday</option>
+          <option value="4">Friday</option>
+          <option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Rotation Pattern</label>
+        <select id="rotationPattern" onchange="onPatternChange()">
+          <option value="7/7">7 on / 7 off</option>
+          <option value="14/14">14 on / 14 off</option>
+          <option value="21/14">21 on / 14 off</option>
+          <option value="21/7">21 on / 7 off</option>
+          <option value="5/4/4/5">5 on / 4 off / 4 on / 5 off</option>
+          <option value="5/2">5 on / 2 off</option>
+          <option value="custom">Custom</option>
+        </select>
+        <div id="customPatternWrap" class="custom-pattern-input">
+          <input type="text" id="customPattern" placeholder="e.g. 10/4/8/6 (on/off/on/off...)" maxlength="40">
+          <div style="font-size:0.72rem;color:var(--text3);margin-top:4px">Slash-separated: on/off/on/off... Max 60 days total.</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Analysis Cycles</label>
+        <select id="analysisCycles"></select>
+        <div id="cyclesInfo" class="cycles-display"></div>
+      </div>
+    </div>
+    <div id="provinceInfo" class="info-box"></div>
+  </div>
+
+  <!-- Crew Tiers -->
+  <div class="card" style="animation-delay:0.1s">
+    <div class="card-title"><span class="icon">&#9979;</span> Crew Tiers</div>
+    <div id="crewTiers"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addTier()" style="margin-top:8px">+ Add Tier</button>
+  </div>
+
+  <!-- Calculate -->
+  <div style="text-align:center;margin:24px 0">
+    <button class="btn btn-primary" onclick="calculate()" style="padding:14px 40px;font-size:0.95rem">
+      &#9889; Calculate Overtime
+    </button>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="results-section">
+    <div class="card" style="animation-delay:0s">
+      <div class="card-title"><span class="icon">&#9776;</span> Summary</div>
+      <div id="summaryMetrics" class="metric-grid"></div>
+    </div>
+    <div class="card" style="animation-delay:0.05s">
+      <div class="card-title"><span class="icon">&#9733;</span> Tier Breakdown</div>
+      <div id="tierResults" class="tier-results"></div>
+    </div>
+    <div id="rulesBox" class="card" style="animation-delay:0.1s">
+      <div class="card-title"><span class="icon">&#9878;</span> Province Rules Applied</div>
+      <div id="rulesContent" class="province-rules-box"></div>
+    </div>
+    <div style="text-align:center;margin-top:20px" class="btn-group" style="justify-content:center">
+      <button class="btn btn-secondary" onclick="exportCSV()">&#8681; Export CSV</button>
+      <button class="btn btn-secondary" onclick="exportPDF()">&#8681; Export PDF</button>
+    </div>
+  </div>
+
+  <footer>Crew Rotation OT Calculator &middot; Canadian Provincial Rules &middot; For estimation only &mdash; consult your payroll team</footer>
+</div>
+
+<!-- Hidden print target -->
+<div id="printTarget"></div>
+
+<script>
+// === Province Rules ===
+const PROVINCES = {
+  AB: { name: 'Alberta', dailyOT: true, daily15: 8, daily20: 12, weeklyThreshold: 44, weeklyRate: 1.5 },
+  BC: { name: 'British Columbia', dailyOT: true, daily15: 8, daily20: 12, weeklyThreshold: 40, weeklyRate: 1.5 },
+  MB: { name: 'Manitoba', dailyOT: true, daily15: 8, daily20: 12, weeklyThreshold: 40, weeklyRate: 1.5 },
+  NB: { name: 'New Brunswick', dailyOT: false, weeklyThreshold: 44, weeklyRate: 1.5 },
+  NL: { name: 'Newfoundland & Labrador', dailyOT: false, weeklyThreshold: 40, weeklyRate: 1.5 },
+  NS: { name: 'Nova Scotia', dailyOT: false, weeklyThreshold: 48, weeklyRate: 1.5 },
+  NT: { name: 'Northwest Territories', dailyOT: true, daily15: 8, daily20: 12, weeklyThreshold: 40, weeklyRate: 1.5 },
+  NU: { name: 'Nunavut', dailyOT: true, daily15: 8, daily20: 12, weeklyThreshold: 40, weeklyRate: 1.5 },
+  ON: { name: 'Ontario', dailyOT: false, weeklyThreshold: 44, weeklyRate: 1.5 },
+  PE: { name: 'Prince Edward Island', dailyOT: false, weeklyThreshold: 48, weeklyRate: 1.5 },
+  QC: { name: 'Quebec', dailyOT: false, weeklyThreshold: 40, weeklyRate: 1.5 },
+  SK: { name: 'Saskatchewan', dailyOT: false, weeklyThreshold: 40, weeklyRate: 1.5 },
+  YT: { name: 'Yukon', dailyOT: true, daily15: 8, daily20: 12, weeklyThreshold: 40, weeklyRate: 1.5 }
+};
+
+// === State ===
+let tierCount = 0;
+let lastResults = null;
+
+// === Init ===
+function init() {
+  addTier('Operators', 12);
+  addTier('Supervisors', 12);
+  onPatternChange();
+  updateProvinceInfo();
+  document.getElementById('province').addEventListener('change', updateProvinceInfo);
+}
+
+// === Theme ===
+function toggleTheme() {
+  const body = document.body;
+  const btn = document.querySelector('.theme-toggle');
+  if (body.dataset.theme === 'dark') {
+    body.dataset.theme = 'light';
+    btn.innerHTML = '&#9788;';
+  } else {
+    body.dataset.theme = 'dark';
+    btn.innerHTML = '&#9790;';
+  }
+}
+
+// === Pattern Parsing ===
+function parsePattern(patternStr) {
+  const parts = patternStr.split('/').map(Number);
+  if (parts.some(isNaN) || parts.length < 2 || parts.length % 2 !== 0) return null;
+  const segments = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    segments.push({ on: parts[i], off: parts[i + 1] });
+  }
+  const totalDays = parts.reduce((a, b) => a + b, 0);
+  if (totalDays > 60 || totalDays < 1) return null;
+  return { segments, totalDays, raw: patternStr };
+}
+
+function getPattern() {
+  const sel = document.getElementById('rotationPattern').value;
+  if (sel === 'custom') {
+    const v = document.getElementById('customPattern').value.trim();
+    if (!v) return null;
+    return parsePattern(v);
+  }
+  // For 5/4/4/5, treat as 5on/4off/4on/5off
+  return parsePattern(sel === '5/4/4/5' ? '5/4/4/5' : sel === '5/2' ? '5/2' : sel);
+}
+
+function onPatternChange() {
+  const sel = document.getElementById('rotationPattern').value;
+  document.getElementById('customPatternWrap').classList.toggle('visible', sel === 'custom');
+  updateCyclesOptions();
+}
+
+function updateCyclesOptions() {
+  const pattern = getPattern();
+  const cyclesSelect = document.getElementById('analysisCycles');
+  const info = document.getElementById('cyclesInfo');
+  cyclesSelect.innerHTML = '';
+  if (!pattern) {
+    cyclesSelect.innerHTML = '<option>-</option>';
+    info.innerHTML = '';
+    return;
+  }
+  const maxCycles = Math.min(12, Math.floor(365 / pattern.totalDays));
+  for (let i = 1; i <= maxCycles; i++) {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = i;
+    if (i === Math.min(4, maxCycles)) opt.selected = true;
+    cyclesSelect.appendChild(opt);
+  }
+  const selected = cyclesSelect.value;
+  info.innerHTML = `<strong>${selected * pattern.totalDays}</strong> days analyzed per cycle selection &middot; ${pattern.totalDays}-day rotation`;
+  cyclesSelect.addEventListener('change', () => {
+    const c = cyclesSelect.value;
+    info.innerHTML = `<strong>${c * pattern.totalDays}</strong> days analyzed &middot; ${pattern.totalDays}-day rotation`;
+  });
+}
+
+function updateProvinceInfo() {
+  const prov = PROVINCES[document.getElementById('province').value];
+  const box = document.getElementById('provinceInfo');
+  if (prov.dailyOT) {
+    box.innerHTML = `<strong>${prov.name}</strong> &mdash; Daily + Weekly OT: &gt;${prov.daily15}h/day at 1.5&times;, &gt;${prov.daily20}h/day at 2.0&times;, plus &gt;${prov.weeklyThreshold}h/week at ${prov.weeklyRate}&times;`;
+  } else {
+    box.innerHTML = `<strong>${prov.name}</strong> &mdash; Weekly OT only: &gt;${prov.weeklyThreshold}h/week at ${prov.weeklyRate}&times;`;
+  }
+}
+
+// === Crew Tiers ===
+function addTier(name, hours) {
+  tierCount++;
+  const id = tierCount;
+  const div = document.createElement('div');
+  div.className = 'crew-tier';
+  div.id = `tier-${id}`;
+  div.innerHTML = `
+    <div class="form-group">
+      <label>Tier Name</label>
+      <input type="text" class="tier-name" value="${name || ''}" placeholder="e.g. Operators">
+    </div>
+    <div class="form-group">
+      <label>Hours/Day</label>
+      <input type="number" class="tier-hours" value="${hours || ''}" min="0.5" max="24" step="0.5" placeholder="hrs">
+    </div>
+    <button class="remove-tier" onclick="removeTier(${id})" title="Remove tier">&times;</button>
+  `;
+  document.getElementById('crewTiers').appendChild(div);
+}
+
+function removeTier(id) {
+  const el = document.getElementById(`tier-${id}`);
+  if (el) {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(20px)';
+    setTimeout(() => el.remove(), 200);
+  }
+}
+
+function getTiers() {
+  const tiers = [];
+  document.querySelectorAll('.crew-tier').forEach(el => {
+    const name = el.querySelector('.tier-name').value.trim();
+    const hours = parseFloat(el.querySelector('.tier-hours').value);
+    if (name && hours > 0) {
+      tiers.push({ name, hours });
+    }
+  });
+  return tiers;
+}
+
+// === Validation ===
+function validate() {
+  const errs = [];
+  const pattern = getPattern();
+  if (!pattern) errs.push('Invalid rotation pattern. Use format like 7/7 or 14/14.');
+  const tiers = getTiers();
+  if (tiers.length === 0) errs.push('Add at least one crew tier with valid name and hours.');
+  tiers.forEach(t => {
+    if (t.hours > 24) errs.push(`${t.name}: hours/day cannot exceed 24.`);
+    if (t.hours <= 0) errs.push(`${t.name}: hours must be positive.`);
+  });
+  if (pattern && pattern.totalDays > 60) errs.push('Rotation pattern cannot exceed 60 days total.');
+  return errs;
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.classList.add('visible');
+  setTimeout(() => box.classList.remove('visible'), 6000);
+}
+
+// === Calculation Engine ===
+function calculate() {
+  const errs = validate();
+  if (errs.length) { showError(errs.join(' ')); return; }
+
+  const pattern = getPattern();
+  const cycles = parseInt(document.getElementById('analysisCycles').value);
+  const provCode = document.getElementById('province').value;
+  const prov = PROVINCES[provCode];
+  const tiers = getTiers();
+  const totalDays = pattern.totalDays * cycles;
+
+  // Build day schedule: array of true (work) / false (off)
+  function buildSchedule() {
+    const schedule = [];
+    for (let c = 0; c < cycles; c++) {
+      for (const seg of pattern.segments) {
+        for (let d = 0; d < seg.on; d++) schedule.push(true);
+        for (let d = 0; d < seg.off; d++) schedule.push(false);
+      }
+    }
+    return schedule;
+  }
+
+  const schedule = buildSchedule();
+  const tierResults = [];
+  let totalAllRegular = 0, totalAllOT15 = 0, totalAllOT20 = 0, totalAllHours = 0;
+
+  tiers.forEach(tier => {
+    const dailyHours = tier.hours;
+    let regularHours = 0, ot15Hours = 0, ot20Hours = 0;
+    const dailyBreakdown = [];
+
+    // Track weekly hours for weekly OT calc
+    const weeks = Math.ceil(totalDays / 7);
+
+    if (prov.dailyOT) {
+      // Daily + Weekly
+      // Step 1: Calculate daily OT for each day
+      const weeklyWorked = new Array(weeks).fill(0);
+      const weeklyRegFromDaily = new Array(weeks).fill(0);
+
+      for (let d = 0; d < totalDays; d++) {
+        const weekIdx = Math.floor(d / 7);
+        if (schedule[d]) {
+          let reg = 0, o15 = 0, o20 = 0;
+          if (dailyHours <= prov.daily15) {
+            reg = dailyHours;
+          } else if (dailyHours <= prov.daily20) {
+            reg = prov.daily15;
+            o15 = dailyHours - prov.daily15;
+          } else {
+            reg = prov.daily15;
+            o15 = prov.daily20 - prov.daily15;
+            o20 = dailyHours - prov.daily20;
+          }
+          weeklyWorked[weekIdx] += dailyHours;
+          weeklyRegFromDaily[weekIdx] += reg;
+          dailyBreakdown.push({ day: d, reg, o15, o20 });
+          regularHours += reg;
+          ot15Hours += o15;
+          ot20Hours += o20;
+        }
+      }
+
+      // Step 2: Weekly threshold check on "regular" hours from daily calc
+      // If weekly regular hours exceed threshold, convert excess to 1.5x
+      for (let w = 0; w < weeks; w++) {
+        if (weeklyRegFromDaily[w] > prov.weeklyThreshold) {
+          const excess = weeklyRegFromDaily[w] - prov.weeklyThreshold;
+          regularHours -= excess;
+          ot15Hours += excess;
+        }
+      }
+    } else {
+      // Weekly only
+      for (let w = 0; w < weeks; w++) {
+        let weekHours = 0;
+        for (let d = w * 7; d < Math.min((w + 1) * 7, totalDays); d++) {
+          if (schedule[d]) weekHours += dailyHours;
+        }
+        if (weekHours <= prov.weeklyThreshold) {
+          regularHours += weekHours;
+        } else {
+          regularHours += prov.weeklyThreshold;
+          ot15Hours += weekHours - prov.weeklyThreshold;
+        }
+      }
+    }
+
+    const totalHours = regularHours + ot15Hours + ot20Hours;
+    const paidEquivalent = regularHours + (ot15Hours * 1.5) + (ot20Hours * 2.0);
+    const effectiveMultiplier = totalHours > 0 ? paidEquivalent / totalHours : 1;
+    const otPremiumPct = totalHours > 0 ? ((paidEquivalent - totalHours) / totalHours) * 100 : 0;
+
+    tierResults.push({
+      name: tier.name, hoursPerDay: dailyHours,
+      regularHours: round2(regularHours), ot15Hours: round2(ot15Hours), ot20Hours: round2(ot20Hours),
+      totalHours: round2(totalHours),
+      paidEquivalent: round2(paidEquivalent),
+      effectiveMultiplier: round4(effectiveMultiplier),
+      otPremiumPct: round2(otPremiumPct)
+    });
+
+    totalAllRegular += regularHours;
+    totalAllOT15 += ot15Hours;
+    totalAllOT20 += ot20Hours;
+    totalAllHours += totalHours;
+  });
+
+  const totalPaidEquiv = totalAllRegular + (totalAllOT15 * 1.5) + (totalAllOT20 * 2.0);
+  const overallMultiplier = totalAllHours > 0 ? totalPaidEquiv / totalAllHours : 1;
+  const overallPremium = totalAllHours > 0 ? ((totalPaidEquiv - totalAllHours) / totalAllHours) * 100 : 0;
+  const workDays = schedule.filter(Boolean).length;
+
+  lastResults = {
+    provCode, provName: prov.name, prov, pattern: pattern.raw, cycles, totalDays,
+    workDays, tierResults,
+    totalAllHours: round2(totalAllHours),
+    totalAllRegular: round2(totalAllRegular),
+    totalAllOT15: round2(totalAllOT15),
+    totalAllOT20: round2(totalAllOT20),
+    totalPaidEquiv: round2(totalPaidEquiv),
+    overallMultiplier: round4(overallMultiplier),
+    overallPremium: round2(overallPremium)
+  };
+
+  renderResults(lastResults);
+}
+
+function round2(n) { return Math.round(n * 100) / 100; }
+function round4(n) { return Math.round(n * 10000) / 10000; }
+
+// === Render ===
+function renderResults(r) {
+  const section = document.getElementById('results');
+  section.classList.add('visible');
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Summary metrics
+  document.getElementById('summaryMetrics').innerHTML = `
+    ${metricCard('OT Premium', r.overallPremium + '%', premiumColor(r.overallPremium), 'Blended across all tiers')}
+    ${metricCard('Effective Multiplier', r.overallMultiplier + '×', '', 'Paid-equivalent / actual hours')}
+    ${metricCard('Total Crew Hours', formatNum(r.totalAllHours) + 'h', '', r.workDays + ' work days × all tiers')}
+    ${metricCard('Paid Equivalent', formatNum(r.totalPaidEquiv) + 'h', '', 'Hours at straight-time value')}
+  `;
+
+  // Tier cards
+  let tierHTML = '';
+  r.tierResults.forEach(t => {
+    const badge = t.otPremiumPct > 20 ? 'high' : t.otPremiumPct > 8 ? 'med' : 'low';
+    const badgeLabel = t.otPremiumPct > 20 ? 'High OT' : t.otPremiumPct > 8 ? 'Moderate' : 'Low OT';
+    tierHTML += `
+    <div class="tier-result-card">
+      <div class="tier-header">
+        <span class="tier-name">${esc(t.name)} <span style="color:var(--text3);font-weight:400">(${t.hoursPerDay}h/day)</span></span>
+        <span class="tier-badge ${badge}">${badgeLabel} &middot; ${t.otPremiumPct}%</span>
+      </div>
+      <div class="breakdown-grid">
+        <div class="breakdown-item"><div class="bl">Regular (1.0×)</div><div class="bv">${formatNum(t.regularHours)}h</div></div>
+        <div class="breakdown-item"><div class="bl">OT 1.5×</div><div class="bv" style="color:var(--orange)">${formatNum(t.ot15Hours)}h</div></div>
+        <div class="breakdown-item"><div class="bl">OT 2.0×</div><div class="bv" style="color:var(--red)">${formatNum(t.ot20Hours)}h</div></div>
+        <div class="breakdown-item"><div class="bl">Eff. Multiplier</div><div class="bv" style="color:var(--accent)">${t.effectiveMultiplier}×</div></div>
+        <div class="breakdown-item"><div class="bl">Total Hours</div><div class="bv">${formatNum(t.totalHours)}h</div></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('tierResults').innerHTML = tierHTML;
+
+  // Province rules
+  const p = r.prov;
+  let rulesHTML = `<h4>${r.provName} (${r.provCode}) — Overtime Rules Applied</h4>`;
+  if (p.dailyOT) {
+    rulesHTML += `<p><strong>Daily overtime:</strong> Hours beyond ${p.daily15}h/day paid at 1.5×; hours beyond ${p.daily20}h/day paid at 2.0×.</p>`;
+    rulesHTML += `<p><strong>Weekly overtime:</strong> Regular hours (after daily OT) exceeding ${p.weeklyThreshold}h/week paid at ${p.weeklyRate}×.</p>`;
+    rulesHTML += `<p><em>Daily OT is calculated first, then weekly thresholds applied to remaining regular hours.</em></p>`;
+  } else {
+    rulesHTML += `<p><strong>Weekly overtime only:</strong> Hours exceeding ${p.weeklyThreshold}h/week paid at ${p.weeklyRate}×. No daily overtime threshold.</p>`;
+  }
+  rulesHTML += `<p style="margin-top:8px;color:var(--text3)">Analysis period: ${r.totalDays} days (${r.cycles} cycle${r.cycles>1?'s':''} of ${r.pattern} pattern). Week boundary aligned to selected start day.</p>`;
+  document.getElementById('rulesContent').innerHTML = rulesHTML;
+
+  // Wire up copy buttons
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = btn.dataset.value;
+      navigator.clipboard.writeText(val).then(() => {
+        btn.classList.add('copied');
+        btn.textContent = '✓';
+        setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '⧉'; }, 1200);
+      });
+    });
+  });
+}
+
+function metricCard(label, value, colorClass, sub) {
+  const raw = value.replace(/[×%h,]/g, '');
+  return `<div class="metric-card">
+    <button class="copy-btn" data-value="${esc(raw)}" title="Copy">⧉</button>
+    <div class="metric-label">${label}</div>
+    <div class="metric-value" ${colorClass ? `style="color:${colorClass}"` : ''}>${value}</div>
+    <div class="metric-sub">${sub}</div>
+  </div>`;
+}
+
+function premiumColor(pct) {
+  if (pct > 20) return 'var(--red)';
+  if (pct > 8) return 'var(--orange)';
+  return 'var(--green)';
+}
+
+function formatNum(n) { return n.toLocaleString('en-CA', { maximumFractionDigits: 2 }); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// === Export CSV ===
+function exportCSV() {
+  if (!lastResults) return;
+  const r = lastResults;
+  let csv = 'Crew Rotation Overtime Calculator — Export\n';
+  csv += `Province,${r.provName} (${r.provCode})\n`;
+  csv += `Pattern,${r.pattern}\n`;
+  csv += `Cycles,${r.cycles}\n`;
+  csv += `Total Days,${r.totalDays}\n`;
+  csv += `Work Days,${r.workDays}\n`;
+  csv += `OT Type,${r.prov.dailyOT ? 'Daily + Weekly' : 'Weekly Only'}\n`;
+  if (r.prov.dailyOT) {
+    csv += `Daily 1.5x Threshold,${r.prov.daily15}h\n`;
+    csv += `Daily 2.0x Threshold,${r.prov.daily20}h\n`;
+  }
+  csv += `Weekly Threshold,${r.prov.weeklyThreshold}h\n\n`;
+
+  csv += 'Tier,Hrs/Day,Regular Hrs,OT 1.5x Hrs,OT 2.0x Hrs,Total Hrs,Paid Equivalent Hrs,Eff Multiplier,OT Premium %\n';
+  r.tierResults.forEach(t => {
+    csv += `"${t.name}",${t.hoursPerDay},${t.regularHours},${t.ot15Hours},${t.ot20Hours},${t.totalHours},${t.paidEquivalent},${t.effectiveMultiplier},${t.otPremiumPct}\n`;
+  });
+  csv += `\nTOTALS,,,,,${r.totalAllHours},${r.totalPaidEquiv},${r.overallMultiplier},${r.overallPremium}\n`;
+
+  downloadFile('crew-rotation-ot.csv', csv, 'text/csv');
+}
+
+// === Export PDF ===
+function exportPDF() {
+  if (!lastResults) return;
+  const r = lastResults;
+  const target = document.getElementById('printTarget');
+  target.style.display = 'block';
+  target.innerHTML = buildPDFHTML(r);
+
+  html2pdf().set({
+    margin: [12, 12, 12, 12],
+    filename: 'crew-rotation-ot.pdf',
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(target).save().then(() => {
+    target.style.display = 'none';
+  });
+}
+
+function buildPDFHTML(r) {
+  let html = `<div style="font-family:Helvetica,Arial,sans-serif;color:#1a1d2b;padding:8px">`;
+  html += `<h1 style="font-size:18px;margin-bottom:2px">Crew Rotation Overtime Report</h1>`;
+  html += `<p style="font-size:11px;color:#666;margin-bottom:16px">${r.provName} (${r.provCode}) &middot; ${r.pattern} pattern &middot; ${r.cycles} cycles &middot; ${r.totalDays} days</p>`;
+
+  html += `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">`;
+  html += pdfMetric('OT Premium', r.overallPremium + '%');
+  html += pdfMetric('Eff. Multiplier', r.overallMultiplier + '×');
+  html += pdfMetric('Total Hours', formatNum(r.totalAllHours) + 'h');
+  html += pdfMetric('Paid Equiv.', formatNum(r.totalPaidEquiv) + 'h');
+  html += `</div>`;
+
+  html += `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:16px">`;
+  html += `<tr style="background:#f0f1f5"><th style="p:6px;text-align:left;border:1px solid #ddd;padding:6px">Tier</th><th style="border:1px solid #ddd;padding:6px">Hrs/Day</th><th style="border:1px solid #ddd;padding:6px">Regular</th><th style="border:1px solid #ddd;padding:6px">OT 1.5×</th><th style="border:1px solid #ddd;padding:6px">OT 2.0×</th><th style="border:1px solid #ddd;padding:6px">Total</th><th style="border:1px solid #ddd;padding:6px">Multiplier</th><th style="border:1px solid #ddd;padding:6px">Premium</th></tr>`;
+  r.tierResults.forEach(t => {
+    html += `<tr><td style="border:1px solid #ddd;padding:6px">${t.name}</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.hoursPerDay}</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.regularHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot15Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot20Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.totalHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.effectiveMultiplier}×</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.otPremiumPct}%</td></tr>`;
+  });
+  html += `</table>`;
+
+  html += `<div style="background:#f7f8fa;border:1px solid #e0e2e8;border-radius:6px;padding:10px;font-size:10px;color:#555">`;
+  html += `<strong>Province Rules — ${r.provName}</strong><br>`;
+  if (r.prov.dailyOT) {
+    html += `Daily OT: >${r.prov.daily15}h at 1.5×, >${r.prov.daily20}h at 2.0×. Weekly: >${r.prov.weeklyThreshold}h at ${r.prov.weeklyRate}×.<br>`;
+  } else {
+    html += `Weekly OT only: >${r.prov.weeklyThreshold}h at ${r.prov.weeklyRate}×.<br>`;
+  }
+  html += `<span style="color:#999">For estimation only — consult payroll for binding calculations.</span>`;
+  html += `</div></div>`;
+  return html;
+}
+
+function pdfMetric(label, value) {
+  return `<div style="flex:1;min-width:100px;background:#f0f1f5;border-radius:6px;padding:10px;text-align:center"><div style="font-size:9px;color:#888;text-transform:uppercase">${label}</div><div style="font-size:18px;font-weight:700;margin-top:2px">${value}</div></div>`;
+}
+
+function downloadFile(name, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Boot
+init();
+</script>
+</body>
+</html>
