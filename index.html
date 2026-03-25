@@ -659,12 +659,14 @@ function renderResults(r) {
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // Summary metrics
-  document.getElementById('summaryMetrics').innerHTML = `
-    ${metricCard('OT Premium', r.overallPremium + '%', premiumColor(r.overallPremium), 'Blended across all tiers')}
-    ${metricCard('Effective Multiplier', r.overallMultiplier + '×', '', 'Paid-equivalent / actual hours')}
-    ${metricCard('Total Crew Hours', formatNum(r.totalAllHours) + 'h', '', r.workDays + ' work days × all tiers')}
-    ${metricCard('Paid Equivalent', formatNum(r.totalPaidEquiv) + 'h', '', 'Hours at straight-time value')}
-  `;
+  let summaryHTML = '';
+  r.tierResults.forEach(t => {
+    summaryHTML += metricCard('OT Premium — ' + esc(t.name), t.otPremiumPct.toFixed(2) + '%', premiumColor(t.otPremiumPct), t.hoursPerDay + 'h/day');
+  });
+  summaryHTML += metricCard('Effective Multiplier', r.overallMultiplier + '×', '', 'Paid-equivalent / actual hours');
+  summaryHTML += metricCard('Total Crew Hours', formatNum(r.totalAllHours) + 'h', '', r.workDays + ' work days × all tiers');
+  summaryHTML += metricCard('Paid Equivalent', formatNum(r.totalPaidEquiv) + 'h', '', 'Hours at straight-time value');
+  document.getElementById('summaryMetrics').innerHTML = summaryHTML;
 
   // Tier cards
   let tierHTML = '';
@@ -675,7 +677,7 @@ function renderResults(r) {
     <div class="tier-result-card">
       <div class="tier-header">
         <span class="tier-name">${esc(t.name)} <span style="color:var(--text3);font-weight:400">(${t.hoursPerDay}h/day)</span></span>
-        <span class="tier-badge ${badge}">${badgeLabel} &middot; ${t.otPremiumPct}%</span>
+        <span class="tier-badge ${badge}">${badgeLabel} &middot; ${t.otPremiumPct.toFixed(2)}%</span>
       </div>
       <div class="breakdown-grid">
         <div class="breakdown-item"><div class="bl">Regular (1.0×)</div><div class="bv">${formatNum(t.regularHours)}h</div></div>
@@ -784,7 +786,9 @@ function buildPDFHTML(r) {
   html += `<p style="font-size:11px;color:#666;margin-bottom:16px">${r.provName} (${r.provCode}) &middot; ${r.pattern} pattern &middot; ${r.cycles} cycles &middot; ${r.totalDays} days</p>`;
 
   html += `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">`;
-  html += pdfMetric('OT Premium', r.overallPremium + '%');
+  r.tierResults.forEach(t => {
+    html += pdfMetric('OT Premium — ' + t.name, t.otPremiumPct.toFixed(2) + '%');
+  });
   html += pdfMetric('Eff. Multiplier', r.overallMultiplier + '×');
   html += pdfMetric('Total Hours', formatNum(r.totalAllHours) + 'h');
   html += pdfMetric('Paid Equiv.', formatNum(r.totalPaidEquiv) + 'h');
@@ -793,7 +797,7 @@ function buildPDFHTML(r) {
   html += `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:16px">`;
   html += `<tr style="background:#f0f1f5"><th style="p:6px;text-align:left;border:1px solid #ddd;padding:6px">Tier</th><th style="border:1px solid #ddd;padding:6px">Hrs/Day</th><th style="border:1px solid #ddd;padding:6px">Regular</th><th style="border:1px solid #ddd;padding:6px">OT 1.5×</th><th style="border:1px solid #ddd;padding:6px">OT 2.0×</th><th style="border:1px solid #ddd;padding:6px">Total</th><th style="border:1px solid #ddd;padding:6px">Multiplier</th><th style="border:1px solid #ddd;padding:6px">Premium</th></tr>`;
   r.tierResults.forEach(t => {
-    html += `<tr><td style="border:1px solid #ddd;padding:6px">${t.name}</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.hoursPerDay}</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.regularHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot15Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot20Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.totalHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.effectiveMultiplier}×</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.otPremiumPct}%</td></tr>`;
+    html += `<tr><td style="border:1px solid #ddd;padding:6px">${t.name}</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.hoursPerDay}</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.regularHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot15Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot20Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.totalHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.effectiveMultiplier}×</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.otPremiumPct.toFixed(2)}%</td></tr>`;
   });
   html += `</table>`;
 
