@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crew Rotation Overtime Calculator</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 :root {
   --bg: #0f1117;
@@ -229,7 +228,6 @@ footer {
   text-align: center; padding: 32px 0 16px;
   font-size: 0.75rem; color: var(--text3);
 }
-#printTarget { position: absolute; left: -9999px; top: 0; width: 800px; background: #fff; }
 </style>
 </head>
 <body data-theme="dark">
@@ -342,8 +340,6 @@ footer {
   <footer>Crew Rotation OT Calculator &middot; Canadian Provincial Rules &middot; For estimation only &mdash; consult your payroll team</footer>
 </div>
 
-<!-- Hidden print target -->
-<div id="printTarget"></div>
 
 <script>
 // === Province Rules ===
@@ -766,44 +762,36 @@ function exportCSV() {
 function exportPDF() {
   if (!lastResults) return;
   const r = lastResults;
-  const target = document.getElementById('printTarget');
-  target.innerHTML = buildPDFHTML(r);
-
-  // Small delay to let the browser layout the content before html2canvas captures it
-  setTimeout(() => {
-    html2pdf().set({
-      margin: [12, 12, 12, 12],
-      filename: 'crew-rotation-ot.pdf',
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).from(target).save().then(() => {
-      target.innerHTML = '';
-    });
-  }, 100);
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Crew Rotation OT Report</title><style>body{font-family:Helvetica,Arial,sans-serif;color:#1a1d2b;padding:24px;margin:0}table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}th,td{border:1px solid #ddd;padding:8px}th{background:#f0f1f5;text-align:left}.metrics{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}.metric{flex:1;min-width:120px;background:#f0f1f5;border-radius:6px;padding:12px;text-align:center}.metric-label{font-size:9px;color:#888;text-transform:uppercase}.metric-value{font-size:20px;font-weight:700;margin-top:4px}.rules{background:#f7f8fa;border:1px solid #e0e2e8;border-radius:6px;padding:12px;font-size:11px;color:#555}@media print{body{padding:12px}}</style></head><body>`);
+  w.document.write(buildPDFHTML(r));
+  w.document.write(`</body></html>`);
+  w.document.close();
+  setTimeout(() => { w.print(); }, 300);
 }
 
 function buildPDFHTML(r) {
-  let html = `<div style="font-family:Helvetica,Arial,sans-serif;color:#1a1d2b;padding:8px">`;
+  let html = ``;
   html += `<h1 style="font-size:18px;margin-bottom:2px">Crew Rotation Overtime Report</h1>`;
   html += `<p style="font-size:11px;color:#666;margin-bottom:16px">${r.provName} (${r.provCode}) &middot; ${r.pattern} pattern &middot; ${r.cycles} cycles &middot; ${r.totalDays} days</p>`;
 
-  html += `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">`;
+  html += `<div class="metrics">`;
   r.tierResults.forEach(t => {
-    html += pdfMetric('OT Premium — ' + t.name, t.otPremiumPct.toFixed(2) + '%');
+    html += `<div class="metric"><div class="metric-label">OT Premium — ${esc(t.name)}</div><div class="metric-value">${t.otPremiumPct.toFixed(2)}%</div></div>`;
   });
-  html += pdfMetric('Eff. Multiplier', r.overallMultiplier + '×');
-  html += pdfMetric('Total Hours', formatNum(r.totalAllHours) + 'h');
-  html += pdfMetric('Paid Equiv.', formatNum(r.totalPaidEquiv) + 'h');
+  html += `<div class="metric"><div class="metric-label">Eff. Multiplier</div><div class="metric-value">${r.overallMultiplier}×</div></div>`;
+  html += `<div class="metric"><div class="metric-label">Total Hours</div><div class="metric-value">${formatNum(r.totalAllHours)}h</div></div>`;
+  html += `<div class="metric"><div class="metric-label">Paid Equiv.</div><div class="metric-value">${formatNum(r.totalPaidEquiv)}h</div></div>`;
   html += `</div>`;
 
-  html += `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:16px">`;
-  html += `<tr style="background:#f0f1f5"><th style="p:6px;text-align:left;border:1px solid #ddd;padding:6px">Tier</th><th style="border:1px solid #ddd;padding:6px">Hrs/Day</th><th style="border:1px solid #ddd;padding:6px">Regular</th><th style="border:1px solid #ddd;padding:6px">OT 1.5×</th><th style="border:1px solid #ddd;padding:6px">OT 2.0×</th><th style="border:1px solid #ddd;padding:6px">Total</th><th style="border:1px solid #ddd;padding:6px">Multiplier</th><th style="border:1px solid #ddd;padding:6px">Premium</th></tr>`;
+  html += `<table>`;
+  html += `<tr><th>Tier</th><th>Hrs/Day</th><th>Regular</th><th>OT 1.5×</th><th>OT 2.0×</th><th>Total</th><th>Multiplier</th><th>Premium</th></tr>`;
   r.tierResults.forEach(t => {
-    html += `<tr><td style="border:1px solid #ddd;padding:6px">${t.name}</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.hoursPerDay}</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.regularHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot15Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.ot20Hours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:right">${t.totalHours}h</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.effectiveMultiplier}×</td><td style="border:1px solid #ddd;padding:6px;text-align:center">${t.otPremiumPct.toFixed(2)}%</td></tr>`;
+    html += `<tr><td>${t.name}</td><td style="text-align:center">${t.hoursPerDay}</td><td style="text-align:right">${t.regularHours}h</td><td style="text-align:right">${t.ot15Hours}h</td><td style="text-align:right">${t.ot20Hours}h</td><td style="text-align:right">${t.totalHours}h</td><td style="text-align:center">${t.effectiveMultiplier}×</td><td style="text-align:center">${t.otPremiumPct.toFixed(2)}%</td></tr>`;
   });
   html += `</table>`;
 
-  html += `<div style="background:#f7f8fa;border:1px solid #e0e2e8;border-radius:6px;padding:10px;font-size:10px;color:#555">`;
+  html += `<div class="rules">`;
   html += `<strong>Province Rules — ${r.provName}</strong><br>`;
   if (r.prov.dailyOT) {
     html += `Daily OT: >${r.prov.daily15}h at 1.5×, >${r.prov.daily20}h at 2.0×. Weekly: >${r.prov.weeklyThreshold}h at ${r.prov.weeklyRate}×.<br>`;
@@ -811,13 +799,10 @@ function buildPDFHTML(r) {
     html += `Weekly OT only: >${r.prov.weeklyThreshold}h at ${r.prov.weeklyRate}×.<br>`;
   }
   html += `<span style="color:#999">For estimation only — consult payroll for binding calculations.</span>`;
-  html += `</div></div>`;
+  html += `</div>`;
   return html;
 }
 
-function pdfMetric(label, value) {
-  return `<div style="flex:1;min-width:100px;background:#f0f1f5;border-radius:6px;padding:10px;text-align:center"><div style="font-size:9px;color:#888;text-transform:uppercase">${label}</div><div style="font-size:18px;font-weight:700;margin-top:2px">${value}</div></div>`;
-}
 
 function downloadFile(name, content, type) {
   const blob = new Blob([content], { type });
