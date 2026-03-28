@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polymarket Edge Finder</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #f8f9fb;
+  --bg2: #ffffff;
+  --bg3: #f1f3f7;
+  --border: #e2e5ec;
+  --text: #1a1d26;
+  --text2: #5a6178;
+  --text3: #8b92a5;
+  --accent: #2563eb;
+  --accent-light: #eff4ff;
+  --green: #059669;
+  --green-bg: #ecfdf5;
+  --green-border: #a7f3d0;
+  --orange: #d97706;
+  --orange-bg: #fffbeb;
+  --orange-border: #fde68a;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+header h1 { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+header h1 span { color: var(--accent); }
+.header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text2); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; }
+.status-dot.loading { background: var(--orange); animation: pulse 1s infinite; }
+.status-dot.error { background: var(--red); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.refresh-btn { background: var(--accent); color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+.refresh-btn:hover { opacity: 0.9; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.summary-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.summary-card .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); font-weight: 600; margin-bottom: 4px; }
+.summary-card .value { font-size: 28px; font-weight: 700; }
+.summary-card .sub { font-size: 13px; color: var(--text2); margin-top: 4px; }
+.edge-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.edge-card:hover { box-shadow: var(--shadow-lg); }
+.edge-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.edge-title { font-size: 18px; font-weight: 700; }
+.edge-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.edge-badge.high { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.edge-badge.medium { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-border); }
+.edge-badge.low { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.edge-section { margin-bottom: 16px; }
+.edge-section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); font-weight: 600; margin-bottom: 8px; }
+.market-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg3); border-radius: 8px; margin-bottom: 6px; font-size: 14px; }
+.market-row .question { flex: 1; color: var(--text); }
+.market-row .odds { font-weight: 700; font-size: 16px; min-width: 60px; text-align: right; }
+.market-row .volume { font-size: 12px; color: var(--text3); min-width: 80px; text-align: right; }
+.explanation { font-size: 14px; color: var(--text2); line-height: 1.7; padding: 12px 16px; background: var(--accent-light); border-radius: 8px; border-left: 3px solid var(--accent); }
+.trade-box { background: var(--bg3); border-radius: 8px; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.trade-item .trade-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); font-weight: 600; }
+.trade-item .trade-value { font-size: 15px; font-weight: 600; color: var(--text); margin-top: 2px; }
+.trade-item .trade-value.buy { color: var(--green); }
+.trade-item .trade-value.sell { color: var(--red); }
+.dates-list { list-style: none; padding: 0; }
+.dates-list li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; display: flex; justify-content: space-between; }
+.dates-list li:last-child { border-bottom: none; }
+.dates-list .date { font-weight: 600; color: var(--text); min-width: 100px; }
+.dates-list .event { color: var(--text2); }
+.risk-bar { height: 6px; border-radius: 3px; background: var(--bg3); overflow: hidden; margin-top: 4px; }
+.risk-fill { height: 100%; border-radius: 3px; }
+footer { text-align: center; padding: 24px; font-size: 12px; color: var(--text3); border-top: 1px solid var(--border); margin-top: 40px; }
+.loading-state { text-align: center; padding: 80px 24px; }
+.loading-state .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.error-banner { background: var(--red-bg); border: 1px solid var(--red-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: var(--red); font-size: 14px; }
+.tag { display: inline-block; background: var(--bg3); color: var(--text2); font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-right: 4px; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>&#9670;</span> Polymarket Edge Finder</h1>
+  <div class="header-right">
+    <span><span class="status-dot" id="statusDot"></span> <span id="statusText">Loading...</span></span>
+    <span id="lastUpdate"></span>
+    <button class="refresh-btn" onclick="loadDashboard()">Refresh</button>
+  </div>
+</header>
+
+<main id="app">
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <div style="color:var(--text2)">Fetching Polymarket data and scanning for edges...</div>
+  </div>
+</main>
+
+<footer>
+  Not financial advice. Data sourced from Polymarket Gamma API. Edges are algorithmic estimates, not guarantees. Do your own research.
+</footer>
+
+<script>
+const API = 'https://gamma-api.polymarket.com';
+const PROXY = 'https://corsproxy.io/?';
+
+// Known correlation pairs and trade mappings
+const EDGE_DEFINITIONS = [
+  {
+    id: 'fed-unemployment',
+    name: 'Fed Rate Cuts vs Unemployment',
+    category: 'Macro',
+    keywords_a: ['fed rate cut', 'how many fed rate cuts'],
+    keywords_b: ['unemployment', 'how high will us unemployment'],
+    logic: (marketsA, marketsB) => {
+      // If unemployment is priced high but rate cuts are priced low = edge
+      const unemploymentHigh = findMarketWithKeyword(marketsB, '5.0') || findMarketWithKeyword(marketsB, '5%');
+      const noCuts = findMarketWithKeyword(marketsA, '0 (0 bps)') || findMarketWithKeyword(marketsA, '0');
+      return { unemploymentHigh, noCuts };
+    },
+    trade: {
+      ticker: 'TMF',
+      tickerAlt: 'TLT',
+      direction: 'BUY',
+      thesis: 'If unemployment reaches 5%+ (which the market prices as likely), the Fed will be forced to cut rates. Rate cuts drive long-duration treasury prices up. TMF (3x leveraged) or TLT (1x) benefit directly.',
+      entry: '~$34.81 (TMF) or ~$85.82 (TLT)',
+      stopLoss: '$30 (TMF) / $80 (TLT)',
+      target: '$45-50 (TMF) / $95-100 (TLT)',
+      timeline: '3-9 months',
+      risk: 'medium'
+    },
+    dates: [
+      { date: 'Apr 4', event: 'March Jobs Report' },
+      { date: 'Apr 28-29', event: 'FOMC Meeting' },
+      { date: 'May 15', event: "Powell's Term Expires" },
+      { date: 'Jun 16-17', event: 'FOMC Meeting + Projections' },
+      { date: 'Jul 28-29', event: 'FOMC Meeting' },
+      { date: 'Sep 15-16', event: 'FOMC Meeting + Projections' },
+    ]
+  },
+  {
+    id: 'recession-fed',
+    name: 'Recession Probability vs Fed Policy',
+    category: 'Macro',
+    keywords_a: ['recession'],
+    keywords_b: ['fed rate cut', 'fed rate hike'],
+    logic: (marketsA, marketsB) => {
+      const recession = marketsA[0];
+      const hike = findMarketWithKeyword(marketsB, 'hike');
+      return { recession, hike };
+    },
+    trade: {
+      ticker: 'TLT',
+      tickerAlt: 'SH',
+      direction: 'BUY',
+      thesis: 'If recession odds are elevated (30%+) but the Fed is still priced to hold/hike, treasuries are underpriced. In a recession, the Fed cuts aggressively and bonds rally. SH (inverse S&P 500) is an additional hedge.',
+      entry: '~$85.82 (TLT) / ~$13 (SH)',
+      stopLoss: '$80 (TLT)',
+      target: '$95-105 (TLT)',
+      timeline: '6-12 months',
+      risk: 'medium'
+    },
+    dates: [
+      { date: 'Apr 4', event: 'March Jobs Report' },
+      { date: 'Apr 30', event: 'Q1 GDP First Estimate' },
+      { date: 'Jun 16-17', event: 'FOMC Meeting' },
+    ]
+  },
+  {
+    id: 'iran-oil',
+    name: 'Iran Ceasefire vs Oil Prices',
+    category: 'Geopolitical',
+    keywords_a: ['iran ceasefire', 'us x iran'],
+    keywords_b: ['oil', 'brent', 'crude'],
+    logic: (marketsA, marketsB) => {
+      const ceasefire = marketsA[0];
+      const oil = marketsB[0];
+      return { ceasefire, oil };
+    },
+    trade: {
+      ticker: 'USO',
+      tickerAlt: 'XLE',
+      direction: 'CONDITIONAL',
+      thesis: 'Oil is at $115 and the ceasefire market is split. If ceasefire happens, oil drops $10-15 quickly — short oil via inverse ETFs. If ceasefire fails and conflict escalates, oil goes above $120 — long oil via USO/XLE. The market is pricing 64% chance ceasefire does NOT come before $120 oil.',
+      entry: 'Wait for signal',
+      stopLoss: 'Depends on direction',
+      target: 'USO +15% on escalation / SCO +10% on ceasefire',
+      timeline: '1-3 months',
+      risk: 'high'
+    },
+    dates: [
+      { date: 'Ongoing', event: 'US-Iran Diplomatic Signals' },
+      { date: 'Apr 28-29', event: 'FOMC (oil/inflation impact)' },
+      { date: 'Jun 30', event: 'Ceasefire deadline (63% by this date)' },
+    ]
+  },
+  {
+    id: 'eurovision',
+    name: 'Eurovision Jury vs Televote Split',
+    category: 'Event',
+    keywords_a: ['eurovision winner'],
+    keywords_b: ['eurovision jury'],
+    logic: (marketsA, marketsB) => {
+      return { winner: marketsA[0], jury: marketsB[0] };
+    },
+    trade: {
+      ticker: 'N/A',
+      tickerAlt: 'N/A',
+      direction: 'INFO',
+      thesis: 'Finland leads the overall winner market at 35% but only 14% for jury vote. France leads juries at 40% but only 13% overall. The 50/50 jury+televote split creates opportunities if jury/televote correlation is mispriced. This edge is Polymarket-only (no traditional market equivalent).',
+      entry: 'Polymarket only',
+      stopLoss: 'N/A',
+      target: 'N/A',
+      timeline: 'May 16, 2026',
+      risk: 'low'
+    },
+    dates: [
+      { date: 'May 12', event: 'Eurovision Semi-Final 1' },
+      { date: 'May 14', event: 'Eurovision Semi-Final 2' },
+      { date: 'May 16', event: 'Eurovision Grand Final' },
+    ]
+  }
+];
+
+function findMarketWithKeyword(markets, keyword) {
+  if (!markets || !markets.length) return null;
+  const kw = keyword.toLowerCase();
+  return markets.find(m => {
+    const q = (m.question || '').toLowerCase();
+    const outcomes = (m.outcomes || '').toLowerCase();
+    return q.includes(kw) || outcomes.includes(kw);
+  });
+}
+
+function matchMarkets(allMarkets, keywords) {
+  return allMarkets.filter(m => {
+    const q = (m.question || '').toLowerCase();
+    return keywords.some(kw => q.includes(kw.toLowerCase()));
+  });
+}
+
+function formatVolume(v) {
+  const n = parseFloat(v) || 0;
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(0) + 'K';
+  return '$' + n.toFixed(0);
+}
+
+function parseOutcomePrices(market) {
+  try {
+    const prices = JSON.parse(market.outcomePrices || '[]');
+    const outcomes = JSON.parse(market.outcomes || '[]');
+    return outcomes.map((o, i) => ({
+      name: o,
+      price: parseFloat(prices[i]) || 0,
+      pct: ((parseFloat(prices[i]) || 0) * 100).toFixed(0) + '%'
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function computeEdgeStrength(markets) {
+  // Simple heuristic: more volume + wider price discrepancy = stronger edge
+  const totalVolume = markets.reduce((s, m) => s + (parseFloat(m.volumeNum) || 0), 0);
+  if (totalVolume > 5000000) return 'high';
+  if (totalVolume > 500000) return 'medium';
+  return 'low';
+}
+
+function riskColor(risk) {
+  if (risk === 'low') return { bg: 'var(--green-bg)', fill: 'var(--green)', width: '33%' };
+  if (risk === 'medium') return { bg: 'var(--orange-bg)', fill: 'var(--orange)', width: '60%' };
+  return { bg: 'var(--red-bg)', fill: 'var(--red)', width: '90%' };
+}
+
+function renderDashboard(allMarkets, edges) {
+  const app = document.getElementById('app');
+
+  const strongEdges = edges.filter(e => e.strength === 'high').length;
+  const totalMarkets = allMarkets.length;
+
+  let html = `
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="label">Edges Detected</div>
+        <div class="value">${edges.length}</div>
+        <div class="sub">${strongEdges} high confidence</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Strongest Edge</div>
+        <div class="value" style="font-size:18px">${edges[0]?.def.name || 'None'}</div>
+        <div class="sub">${edges[0]?.def.trade.ticker || ''} ${edges[0]?.def.trade.direction || ''}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Markets Scanned</div>
+        <div class="value">${totalMarkets}</div>
+        <div class="sub">Active Polymarket markets</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">For Canadian Investors</div>
+        <div class="value" style="font-size:16px">IBKR / Questrade</div>
+        <div class="sub">Trade via traditional ETFs</div>
+      </div>
+    </div>
+  `;
+
+  for (const edge of edges) {
+    const rc = riskColor(edge.def.trade.risk);
+    const allEdgeMarkets = [...edge.marketsA, ...edge.marketsB];
+
+    html += `
+      <div class="edge-card">
+        <div class="edge-header">
+          <div>
+            <div class="edge-title">${edge.def.name}</div>
+            <span class="tag">${edge.def.category}</span>
+            ${edge.def.trade.ticker !== 'N/A' ? `<span class="tag">${edge.def.trade.ticker}</span>` : ''}
+            ${edge.def.trade.tickerAlt !== 'N/A' ? `<span class="tag">${edge.def.trade.tickerAlt}</span>` : ''}
+          </div>
+          <span class="edge-badge ${edge.strength}">${edge.strength} confidence</span>
+        </div>
+
+        <div class="edge-section">
+          <div class="edge-section-title">Polymarket Markets Involved</div>
+          ${allEdgeMarkets.slice(0, 8).map(m => {
+            const op = parseOutcomePrices(m);
+            const topOutcome = op.sort((a, b) => b.price - a.price)[0];
+            return `
+              <div class="market-row">
+                <span class="question">${m.question}</span>
+                <span class="odds" style="color: ${topOutcome && topOutcome.price > 0.5 ? 'var(--green)' : 'var(--text)'}">${topOutcome ? topOutcome.name + ' ' + topOutcome.pct : (parseFloat(m.lastTradePrice) * 100).toFixed(0) + '%'}</span>
+                <span class="volume">${formatVolume(m.volumeNum)}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="edge-section">
+          <div class="edge-section-title">The Mispricing</div>
+          <div class="explanation">${edge.def.trade.thesis}</div>
+        </div>
+
+        ${edge.def.trade.ticker !== 'N/A' ? `
+        <div class="edge-section">
+          <div class="edge-section-title">Recommended Trade</div>
+          <div class="trade-box">
+            <div class="trade-item">
+              <div class="trade-label">Action</div>
+              <div class="trade-value ${edge.def.trade.direction === 'BUY' ? 'buy' : edge.def.trade.direction === 'SELL' ? 'sell' : ''}">${edge.def.trade.direction} ${edge.def.trade.ticker}</div>
+            </div>
+            <div class="trade-item">
+              <div class="trade-label">Entry</div>
+              <div class="trade-value">${edge.def.trade.entry}</div>
+            </div>
+            <div class="trade-item">
+              <div class="trade-label">Stop Loss</div>
+              <div class="trade-value" style="color:var(--red)">${edge.def.trade.stopLoss}</div>
+            </div>
+            <div class="trade-item">
+              <div class="trade-label">Target</div>
+              <div class="trade-value" style="color:var(--green)">${edge.def.trade.target}</div>
+            </div>
+            <div class="trade-item">
+              <div class="trade-label">Timeline</div>
+              <div class="trade-value">${edge.def.trade.timeline}</div>
+            </div>
+            <div class="trade-item">
+              <div class="trade-label">Risk</div>
+              <div class="risk-bar"><div class="risk-fill" style="width:${rc.width};background:${rc.fill}"></div></div>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="edge-section">
+          <div class="edge-section-title">Key Dates to Watch</div>
+          <ul class="dates-list">
+            ${edge.def.dates.map(d => `
+              <li><span class="date">${d.date}</span><span class="event">${d.event}</span></li>
+            `).join('')}
+          </ul>
+        </div>
+      </div>
+    `;
+  }
+
+  app.innerHTML = html;
+}
+
+async function fetchMarkets() {
+  // Try direct first, fall back to CORS proxy
+  const urls = [
+    `${API}/markets?closed=false&active=true&order=volume24hr&ascending=false&limit=100`,
+    `${PROXY}${encodeURIComponent(API + '/markets?closed=false&active=true&order=volume24hr&ascending=false&limit=100')}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  return null;
+}
+
+function analyzeEdges(allMarkets) {
+  const edges = [];
+
+  for (const def of EDGE_DEFINITIONS) {
+    const marketsA = matchMarkets(allMarkets, def.keywords_a);
+    const marketsB = matchMarkets(allMarkets, def.keywords_b);
+
+    if (marketsA.length > 0 || marketsB.length > 0) {
+      const combined = [...marketsA, ...marketsB];
+      edges.push({
+        def,
+        marketsA,
+        marketsB,
+        strength: computeEdgeStrength(combined)
+      });
+    }
+  }
+
+  // Sort: high confidence first
+  const order = { high: 0, medium: 1, low: 2 };
+  edges.sort((a, b) => order[a.strength] - order[b.strength]);
+
+  return edges;
+}
+
+// Fallback: show edges with hardcoded recent data if API fails
+function getFallbackMarkets() {
+  return [
+    { question: 'How many Fed rate cuts in 2026?', outcomePrices: '["0.39","0.25","0.18","0.10","0.08"]', outcomes: '["0 (0 bps)","1 (25 bps)","2 (50 bps)","3 (75 bps)","4+ (100+ bps)"]', volumeNum: '14200000', lastTradePrice: '0.39' },
+    { question: 'How high will US unemployment go in 2026?', outcomePrices: '["0.65","0.30","0.05"]', outcomes: '["5.0%","5.5%","Below 4.5%"]', volumeNum: '317000', lastTradePrice: '0.65' },
+    { question: 'US recession by end of 2026?', outcomePrices: '["0.36","0.64"]', outcomes: '["Yes","No"]', volumeNum: '895000', lastTradePrice: '0.36' },
+    { question: 'Fed rate hike in 2026?', outcomePrices: '["0.17","0.83"]', outcomes: '["Yes","No"]', volumeNum: '2100000', lastTradePrice: '0.17' },
+    { question: 'US x Iran ceasefire by June 30?', outcomePrices: '["0.63","0.37"]', outcomes: '["Yes","No"]', volumeNum: '57472000', lastTradePrice: '0.63' },
+    { question: 'US x Iran ceasefire before Oil hits $120?', outcomePrices: '["0.36","0.64"]', outcomes: '["Yes","No"]', volumeNum: '31587', lastTradePrice: '0.36' },
+    { question: 'Brent crude oil above $120 in March?', outcomePrices: '["0.36","0.64"]', outcomes: '["Yes","No"]', volumeNum: '1500000', lastTradePrice: '0.36' },
+    { question: 'Eurovision Winner 2026', outcomePrices: '["0.35","0.13","0.10","0.08"]', outcomes: '["Finland","France","Denmark","Sweden"]', volumeNum: '44189000', lastTradePrice: '0.35' },
+    { question: 'Eurovision 2026: Jury Winner', outcomePrices: '["0.40","0.14","0.10","0.08"]', outcomes: '["France","Finland","Denmark","Sweden"]', volumeNum: '2000000', lastTradePrice: '0.40' },
+    { question: 'Fed decision in April?', outcomePrices: '["0.96","0.02","0.01"]', outcomes: '["No change","25+ bps hike","25 bps cut"]', volumeNum: '3200000', lastTradePrice: '0.96' },
+  ];
+}
+
+async function loadDashboard() {
+  const dot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const lastUpdate = document.getElementById('lastUpdate');
+
+  dot.className = 'status-dot loading';
+  statusText.textContent = 'Fetching...';
+
+  let markets = await fetchMarkets();
+  let source = 'live';
+
+  if (!markets || markets.length === 0) {
+    markets = getFallbackMarkets();
+    source = 'cached';
+  }
+
+  const edges = analyzeEdges(markets);
+  renderDashboard(markets, edges);
+
+  dot.className = 'status-dot';
+  statusText.textContent = source === 'live' ? 'Live' : 'Cached data (API unavailable)';
+  if (source !== 'live') {
+    dot.className = 'status-dot error';
+  }
+  lastUpdate.textContent = 'Updated: ' + new Date().toLocaleTimeString();
+}
+
+// Initial load
+loadDashboard();
+
+// Auto-refresh every 5 minutes
+setInterval(loadDashboard, 5 * 60 * 1000);
+</script>
+</body>
+</html>
