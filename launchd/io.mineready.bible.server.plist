@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.mineready.bible.server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/python3</string>
+        <string>-m</string>
+        <string>uvicorn</string>
+        <string>backend.main:app</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>8001</string>
+        <string>--workers</string>
+        <string>2</string>
+    </array>
+
+    <!-- Update this path to the actual project directory on therobotmachine -->
+    <key>WorkingDirectory</key>
+    <string>/Users/routeready/mining-bible</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>/Users/routeready/mining-bible</string>
+        <key>ENV_FILE</key>
+        <string>/Users/routeready/mining-bible/.env</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/mining-bible/server.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/mining-bible/server-error.log</string>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>
