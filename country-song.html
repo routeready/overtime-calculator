@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Country Song Generator</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #1a0f05;
+  font-family: Georgia, serif;
+  color: #e8d5b0;
+  min-height: 100vh;
+  padding: 48px 16px 96px;
+}
+.container {
+  max-width: 740px;
+  margin: 0 auto;
+}
+.page-title {
+  text-align: center;
+  font-size: 2.1rem;
+  color: #f5c842;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 16px rgba(245,200,66,0.25);
+}
+.page-subtitle {
+  text-align: center;
+  font-size: 0.88rem;
+  color: #8a6a3a;
+  margin-bottom: 40px;
+  font-style: italic;
+}
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+}
+.theme-input {
+  flex: 1;
+  min-width: 200px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(245,200,66,0.22);
+  border-radius: 8px;
+  padding: 13px 16px;
+  color: #e8d5b0;
+  font-family: Georgia, serif;
+  font-size: 0.97rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.theme-input::placeholder { color: #6a4c28; }
+.theme-input:focus { border-color: rgba(245,200,66,0.6); }
+.theme-input:disabled { opacity: 0.5; cursor: not-allowed; }
+.generate-btn {
+  background: linear-gradient(135deg, #b8891e, #f5c842);
+  color: #1a0f05;
+  border: none;
+  border-radius: 8px;
+  padding: 13px 30px;
+  font-family: Georgia, serif;
+  font-size: 0.97rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.generate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(245,200,66,0.35);
+}
+.generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Cards */
+.card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(245,200,66,0.14);
+  border-radius: 12px;
+  padding: 26px 28px;
+  margin-bottom: 24px;
+  animation: fadeUp 0.38s ease-out both;
+}
+.card.final-card {
+  border: 2px solid #f5c842;
+  box-shadow: 0 0 28px rgba(245,200,66,0.12);
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.step-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f5c842;
+  color: #1a0f05;
+  font-weight: bold;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.step-badge.loading-badge {
+  background: transparent;
+  border: 2px solid rgba(245,200,66,0.4);
+  color: #f5c842;
+}
+.step-title { font-size: 1rem; color: #f5c842; font-weight: bold; line-height: 1.3; }
+.step-desc  { font-size: 0.78rem; color: #8a6a3a; margin-top: 3px; font-style: italic; }
+
+/* Status line */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #8a6a3a;
+  font-style: italic;
+  font-size: 0.88rem;
+  padding: 4px 0;
+}
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(245,200,66,0.25);
+  border-top-color: #f5c842;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Error box */
+.error-box {
+  background: rgba(200,50,50,0.13);
+  border: 1px solid rgba(220,70,70,0.4);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #ff8888;
+  font-size: 0.82rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+/* Song rendering */
+.song-title-text {
+  font-size: 1.35rem;
+  color: #f5c842;
+  text-align: center;
+  font-style: italic;
+  margin-bottom: 22px;
+  line-height: 1.3;
+}
+.section-block { margin-bottom: 18px; }
+.section-block:last-child { margin-bottom: 0; }
+.section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #7a5a30;
+  margin-bottom: 7px;
+  font-style: normal;
+}
+.section-lyrics {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  white-space: pre-line;
+  color: #e0cba0;
+}
+.section-lyrics.chorus-text {
+  font-style: italic;
+  color: #f0e2b8;
+}
+
+/* Critique block */
+.critique-wrapper {
+  background: rgba(255,255,255,0.025);
+  border-left: 2px solid rgba(245,200,66,0.22);
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  border-radius: 0 6px 6px 0;
+}
+.critique-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #7a5a30;
+  margin-bottom: 6px;
+}
+.critique-text {
+  font-size: 0.84rem;
+  line-height: 1.65;
+  color: #a07848;
+  white-space: pre-wrap;
+}
+.revised-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #7a5a30;
+  margin-bottom: 14px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(245,200,66,0.1);
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback } = React;
+
+/* ── Section parsing ─────────────────────────────────────────────── */
+const ORDERED_LABELS = [
+  'TITLE:', 'VERSE 1:', 'CHORUS:', 'VERSE 2:', 'CHORUS:', 'BRIDGE:', 'FINAL CHORUS:'
+];
+const CHORUS_SET = new Set(['CHORUS:', 'FINAL CHORUS:']);
+
+function parseSong(text) {
+  const sections = [];
+  let searchFrom = 0;
+
+  for (let i = 0; i < ORDERED_LABELS.length; i++) {
+    const label = ORDERED_LABELS[i];
+    const idx = text.indexOf(label, searchFrom);
+    if (idx === -1) continue;
+
+    const contentStart = idx + label.length;
+    let nextIdx = text.length;
+    for (let j = i + 1; j < ORDERED_LABELS.length; j++) {
+      const ni = text.indexOf(ORDERED_LABELS[j], contentStart);
+      if (ni !== -1) { nextIdx = ni; break; }
+    }
+
+    sections.push({
+      label:    label.replace(':', ''),
+      content:  text.slice(contentStart, nextIdx).trim(),
+      isChorus: CHORUS_SET.has(label),
+    });
+    searchFrom = contentStart;
+  }
+  return sections;
+}
+
+/* ── Song view ───────────────────────────────────────────────────── */
+function SongView({ text }) {
+  const sections = parseSong(text);
+
+  if (!sections.length) {
+    return <div className="section-lyrics" style={{whiteSpace:'pre-wrap'}}>{text.trim()}</div>;
+  }
+
+  const titleSec = sections.find(s => s.label === 'TITLE');
+  const bodySecs = sections.filter(s => s.label !== 'TITLE');
+
+  return (
+    <div>
+      {titleSec && (
+        <div className="song-title-text">&#8220;{titleSec.content}&#8221;</div>
+      )}
+      {bodySecs.map((sec, i) => (
+        <div className="section-block" key={i}>
+          <div className="section-label">{sec.label}</div>
+          <div className={`section-lyrics${sec.isChorus ? ' chorus-text' : ''}`}>
+            {sec.content}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Critique + revised song view ───────────────────────────────── */
+function CritiqueView({ text }) {
+  const splitIdx = text.indexOf('REVISED SONG:');
+  const critiquePart = splitIdx !== -1 ? text.slice(0, splitIdx) : '';
+  const critiqueBody = critiquePart.replace(/^CRITIQUE:\s*/i, '').trim();
+  const revisedPart  = splitIdx !== -1 ? text.slice(splitIdx + 'REVISED SONG:'.length).trim() : text.trim();
+
+  return (
+    <div>
+      {critiqueBody && (
+        <div className="critique-wrapper">
+          <div className="critique-label">Critique</div>
+          <div className="critique-text">{critiqueBody}</div>
+        </div>
+      )}
+      <div className="revised-label">Revised Song</div>
+      <SongView text={revisedPart} />
+    </div>
+  );
+}
+
+/* ── Step card ───────────────────────────────────────────────────── */
+function StepCard({ num, title, desc, status, result, error, isFinal }) {
+  const isLoading = status === 'loading';
+  const isDone    = status === 'done';
+  const isError   = status === 'error';
+
+  return (
+    <div className={`card${isFinal ? ' final-card' : ''}`}>
+      <div className="step-header">
+        <div className={`step-badge${isLoading ? ' loading-badge' : ''}`}>{num}</div>
+        <div>
+          <div className="step-title">{title}</div>
+          <div className="step-desc">{desc}</div>
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="status-row">
+          <span className="spinner" />
+          Calling Anthropic API&#8230;
+        </div>
+      )}
+
+      {isError && error && (
+        <div className="error-box">{error}</div>
+      )}
+
+      {isDone && result && (
+        num === 1
+          ? <SongView text={result} />
+          : <CritiqueView text={result} />
+      )}
+    </div>
+  );
+}
+
+/* ── API call ────────────────────────────────────────────────────── */
+async function callAPI(userMessageString) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: userMessageString }]
+    })
+  });
+  const data = await res.json();
+  const text = data.content[0].text;
+  return text;
+}
+
+/* ── App ─────────────────────────────────────────────────────────── */
+function App() {
+  const [theme,   setTheme]   = useState('');
+  const [steps,   setSteps]   = useState([]);
+  const [running, setRunning] = useState(false);
+
+  const generate = useCallback(async () => {
+    const songTheme = theme.trim() || 'the open road';
+    setRunning(true);
+    setSteps([{ status: 'loading' }]);
+
+    /* ── Step 1 ── */
+    let step1Text;
+    try {
+      const prompt1 =
+        `Write a country song about ${songTheme}. ` +
+        `Format it with these labels each on their own line followed by the lyrics: ` +
+        `TITLE: then VERSE 1: then CHORUS: then VERSE 2: then CHORUS: then BRIDGE: then FINAL CHORUS:`;
+      step1Text = await callAPI(prompt1);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSteps([{ status: 'error', error: msg }]);
+      setRunning(false);
+      return;
+    }
+
+    setSteps([
+      { status: 'done', result: step1Text },
+      { status: 'loading' },
+    ]);
+
+    /* ── Step 2 ── */
+    let step2Text, step2Revised;
+    try {
+      const prompt2 =
+        `Here is a country song:\n\n${step1Text}\n\n` +
+        `Rewrite this song. First write CRITIQUE: and identify the 2 weakest lines and why. ` +
+        `Then write REVISED SONG: and output the full rewritten song with the same section labels.`;
+      step2Text    = await callAPI(prompt2);
+      step2Revised = step2Text.split('REVISED SONG:')[1] || step2Text;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSteps(prev => [prev[0], { status: 'error', error: msg }]);
+      setRunning(false);
+      return;
+    }
+
+    setSteps([
+      { status: 'done', result: step1Text },
+      { status: 'done', result: step2Text },
+      { status: 'loading' },
+    ]);
+
+    /* ── Step 3 ── */
+    let step3Text;
+    try {
+      const prompt3 =
+        `Here is a country song:\n\n${step2Revised.trim()}\n\n` +
+        `Rewrite this song. First write CRITIQUE: and identify the 2 weakest lines and why. ` +
+        `Then write REVISED SONG: and output the full rewritten song with the same section labels.`;
+      step3Text = await callAPI(prompt3);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSteps(prev => [prev[0], prev[1], { status: 'error', error: msg }]);
+      setRunning(false);
+      return;
+    }
+
+    setSteps([
+      { status: 'done', result: step1Text },
+      { status: 'done', result: step2Text },
+      { status: 'done', result: step3Text },
+    ]);
+    setRunning(false);
+  }, [theme]);
+
+  const step3Done = steps.length === 3 && steps[2]?.status === 'done';
+
+  return (
+    <div className="container">
+      <h1 className="page-title">Country Song Generator</h1>
+      <p className="page-subtitle">
+        Three rounds of AI critique &amp; refinement — each step feeds the next
+      </p>
+
+      <div className="controls">
+        <input
+          className="theme-input"
+          type="text"
+          placeholder="Song theme&#8230; e.g. leaving home, old pickup truck, harvest moon"
+          value={theme}
+          onChange={e => setTheme(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && !running && generate()}
+          disabled={running}
+        />
+        <button
+          className="generate-btn"
+          onClick={generate}
+          disabled={running}
+        >
+          {running ? 'Writing…' : 'Write My Song'}
+        </button>
+      </div>
+
+      {steps[0] && (
+        <StepCard
+          num={1}
+          title="Step 1 — Generate"
+          desc="First draft written from your theme"
+          status={steps[0].status}
+          result={steps[0].result}
+          error={steps[0].error}
+          isFinal={false}
+        />
+      )}
+
+      {steps[1] && (
+        <StepCard
+          num={2}
+          title="Step 2 — Critique &amp; Rewrite"
+          desc="AI finds the 2 weakest lines and rewrites the song"
+          status={steps[1].status}
+          result={steps[1].result}
+          error={steps[1].error}
+          isFinal={false}
+        />
+      )}
+
+      {steps[2] && (
+        <StepCard
+          num={3}
+          title="Step 3 — Final Polish"
+          desc="Second round of critique produces the finished song"
+          status={steps[2].status}
+          result={steps[2].result}
+          error={steps[2].error}
+          isFinal={step3Done}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
