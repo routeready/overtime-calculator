@@ -25,5 +25,8 @@ the last; miss it and Earl repossesses the boat.
   Win the multi-stage fight to land him for a huge payout and a permanent title.
 - **Endings** — pay your way to a higher rep, get arrested fleeing the law, or
   go broke at sundown. Multiple outcomes to chase.
+- **Persistent records** — your best run (days survived, lifetime catch, top
+  reputation, and whether you ever landed Mossback) is saved in the browser via
+  `localStorage` and shown on the start screen. Beat it to set a new personal best.
 
 Touch controls are supported on mobile.
